@@ -1,0 +1,128 @@
+Private Sub Worksheet_Activate()
+    ' 워크시트가 활성화될 때 실행되는 이벤트
+    ' 이 이벤트는 워크시트가 활성화될 때마다 호출됩니다.
+
+    ' 버튼이 이미 만들어졌는지 확인 후, 만들어지지 않았다면 버튼 생성 이벤트를 호출합니다.
+    If Not ButtonExists() Then
+        ' 현재 워크시트의 C열에 선택 버튼을 생성
+        Call 생성_선택버튼
+        Call 생성_SQL버튼
+    End If
+End Sub
+
+Function ButtonExists() As Boolean
+    ' 버튼이 이미 존재하는지 확인하는 함수
+
+    Dim btn As Button
+    On Error Resume Next
+    ' 첫 번째 버튼을 시트에 대해 시도하여 존재 여부를 확인합니다.
+    Set btn = Me.Buttons(1)
+    On Error GoTo 0
+
+    ' 버튼이 존재하면 True, 그렇지 않으면 False를 반환합니다.
+    ButtonExists = Not btn Is Nothing
+End Function
+
+Sub 생성_선택버튼()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim btn As Button
+    Dim i As Long
+    Dim btnTop As Double
+    Dim btnLeft As Double
+
+    ' 현재 워크시트에 대입
+    Set ws = ThisWorkbook.Sheets(ActiveSheet.Name)
+
+    ' 마지막 행 찾기
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    ' 선택 버튼 생성
+    For i = 2 To lastRow
+        btnTop = ws.Cells(i, 3).Top
+        btnLeft = ws.Cells(i, 3).Left
+
+        ' 버튼 생성
+        Set btn = ws.Buttons.Add(btnLeft, btnTop, 60, 15)
+        btn.OnAction = ws.CodeName & ".선택버튼_클릭"
+        btn.Characters.Text = "선택"
+        btn.Name = "Button_" & i
+    Next i
+End Sub
+
+Sub 선택버튼_클릭()
+    ' 선택 버튼을 눌렀을 때 실행되는 매크로
+
+    Dim ws As Worksheet
+    Dim clickedRow As Long
+    Dim selectedData As String
+
+    ' 현재 워크시트에 대입
+    Set ws = ThisWorkbook.Sheets(ActiveSheet.Name)
+
+    ' 클릭된 버튼 찾기
+    clickedRow = ActiveSheet.Buttons(Application.Caller).TopLeftCell.Row
+
+    ' 해당 행의 D열에 'O'를 쓰거나 삭제
+    If ws.Cells(clickedRow, "D").Value = ws.Cells(clickedRow, 1).Value Then
+        ws.Cells(clickedRow, "D").ClearContents
+    Else
+        ' 클릭된 버튼의 행에서 A열 값을 가져와서 D2에 추가로 입력
+        ws.Cells(clickedRow, "D").Value = ws.Cells(clickedRow, 1).Value
+    End If
+End Sub
+
+Sub 생성_SQL버튼()
+    Dim ws As Worksheet
+    Dim btn As Button
+
+    ' 현재 워크시트에 대입
+    Set ws = ThisWorkbook.Sheets(ActiveSheet.Name)
+
+    ' 버튼 생성
+    Set btn = ws.Buttons.Add(ws.Cells(2, 11).Left, ws.Cells(2, 11).Top, 120, 30)
+    btn.OnAction = ws.CodeName & ".SQL버튼_클릭"
+    btn.Characters.Text = "SQL 쿼리 생성"
+    btn.Name = "SQLButton"
+End Sub
+
+Sub SQL버튼_클릭()
+    ' 'SQL 쿼리 생성' 버튼을 눌렀을 때 실행되는 매크로
+
+    Dim tableName As String
+    Dim sqlCode As String
+    Dim dataRange As Range
+    Dim cell As Range
+
+    ' 새로 만들 테이블명 입력 받기
+    tableName = InputBox("새로 만들 테이블명을 입력하세요")
+
+    ' 테이블명이 입력되지 않으면 종료
+    If tableName = "" Then Exit Sub
+
+    ' 현재 워크시트에 대입
+    Set ws = ThisWorkbook.Sheets(ActiveSheet.Name)
+
+    ' 시트의 이름을 가져와서 SQL 코드에 활용
+    Dim sheetName As String
+    sheetName = ws.Name
+
+    ' G열에 있는 비어있지 않은 데이터를 ,로 연결하여 SQL 코드 작성
+    Set dataRange = ws.Range("D2:D" & ws.Cells(ws.Rows.Count, "D").End(xlUp).Row)
+    For Each cell In dataRange
+        If cell.Value <> "" Then
+            sqlCode = sqlCode & cell.Value & ", "
+        End If
+    Next cell
+
+    ' 마지막에 추가된 ", " 제거
+    sqlCode = Left(sqlCode, Len(sqlCode) - 2)
+
+    ' SQL 코드 작성 및 G열에 입력
+    ws.Range("G1").Value = "proc sql noprint;"
+    ws.Range("G2").Value = "create table " & tableName & " as"
+    ws.Range("G3").Value = "select " & sqlCode
+    ws.Range("G4").Value = "from " & ws.Cells(1, 12) & ";"
+    ws.Range("G5").Value = "run;"
+End Sub
+
